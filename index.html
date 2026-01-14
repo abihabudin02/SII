@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Surat Jalan Multi-Item - Epson LX 310</title>
+    <title>Sistem Surat Jalan - Presisi Template</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -15,6 +15,7 @@
         @media print {
             .no-print { display: none !important; }
             body { background: white; margin: 0; padding: 0; }
+            
             .print-area {
                 display: block !important;
                 position: relative;
@@ -23,20 +24,29 @@
                 font-family: 'Courier New', Courier, monospace; 
                 font-size: 10pt;
                 color: black;
-                overflow: hidden;
+                background: transparent;
             }
-            .field-data { position: absolute; white-space: pre-wrap; }
-            @page { size: 21.5cm 16.4cm; margin: 0; }
+
+            .field-data { 
+                position: absolute; 
+                white-space: nowrap; 
+                border: none; 
+                background: none;
+            }
+            
+            @page { 
+                size: 21.5cm 16.4cm; 
+                margin: 0; 
+            }
         }
+
         .print-area { display: none; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border: 1px solid #e5e7eb; }
-        input, select, textarea { border: 1px solid #d1d5db; border-radius: 6px; padding: 0.4rem; width: 100%; transition: all 0.2s; font-size: 0.875rem; }
-        input:focus { border-color: #3b82f6; ring: 2px; outline: none; }
-        .btn-primary { background: #2563eb; color: white; font-weight: bold; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; }
-        .btn-primary:hover { background: #1d4ed8; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+        input, textarea, select { border: 1px solid #cbd5e1; border-radius: 4px; padding: 0.5rem; width: 100%; font-size: 0.875rem; }
+        label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
+<body class="bg-slate-100 text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -51,28 +61,25 @@
 
         function App() {
             const [activeTab, setActiveTab] = useState('transaksi');
-            const [entries, setEntries] = useState(() => JSON.parse(localStorage.getItem('sj_entries_v2') || '[]'));
+            const [entries, setEntries] = useState(() => JSON.parse(localStorage.getItem('sj_v4_data') || '[]'));
             const [printData, setPrintData] = useState(null);
 
             const [masterItems, setMasterItems] = useState(() => JSON.parse(localStorage.getItem('m_items') || '[]'));
             const [masterTrucks, setMasterTrucks] = useState(() => JSON.parse(localStorage.getItem('m_trucks') || '[]'));
             const [masterCustomers, setMasterCustomers] = useState(() => JSON.parse(localStorage.getItem('m_customers') || '[]'));
 
-            // Sesuai instruksi User:
-            // Tanggal: Atas 5.5, Kanan/Samping 16.5
-            // Kepada: Atas 6.5, Samping 5.0
-            // Item: Atas 9.0, Samping 3.5
+            // Kalibrasi berdasarkan visual template yang diunggah
             const defaultPos = {
                 tanggal: { top: 5.5, left: 16.5 },
                 kepada: { top: 6.5, left: 5.0 },
                 barang_start: { top: 9.0, left: 3.5 },
-                qty_start: { top: 9.0, left: 13.0 },
+                qty_start: { top: 9.0, left: 13.5 },
                 sat_start: { top: 9.0, left: 15.5 },
-                line_height: { val: 0.6 },
-                nopol: { top: 13.5, left: 8.5 },
-                driver: { top: 14.5, left: 8.5 }
+                line_height: { val: 0.65 },
+                nopol: { top: 14.5, left: 5.5 },
+                driver: { top: 14.5, left: 10.5 }
             };
-            const [positions, setPositions] = useState(() => JSON.parse(localStorage.getItem('sj_pos_v2') || JSON.stringify(defaultPos)));
+            const [positions, setPositions] = useState(() => JSON.parse(localStorage.getItem('sj_v4_pos') || JSON.stringify(defaultPos)));
 
             const [formData, setFormData] = useState({
                 id: Date.now(),
@@ -84,11 +91,8 @@
                 items: [{ id: Date.now(), uraian: '', jumlah: '', um: '' }]
             });
 
-            useEffect(() => localStorage.setItem('sj_entries_v2', JSON.stringify(entries)), [entries]);
-            useEffect(() => localStorage.setItem('m_items', JSON.stringify(masterItems)), [masterItems]);
-            useEffect(() => localStorage.setItem('m_trucks', JSON.stringify(masterTrucks)), [masterTrucks]);
-            useEffect(() => localStorage.setItem('m_customers', JSON.stringify(masterCustomers)), [masterCustomers]);
-            useEffect(() => localStorage.setItem('sj_pos_v2', JSON.stringify(positions)), [positions]);
+            useEffect(() => localStorage.setItem('sj_v4_data', JSON.stringify(entries)), [entries]);
+            useEffect(() => localStorage.setItem('sj_v4_pos', JSON.stringify(positions)), [positions]);
 
             const handleHeaderChange = (e) => {
                 const { name, value } = e.target;
@@ -102,10 +106,6 @@
                     if (found) updates.transporter = found.driver;
                 }
                 setFormData(prev => ({ ...prev, ...updates }));
-            };
-
-            const addItemRow = () => {
-                setFormData({ ...formData, items: [...formData.items, { id: Date.now(), uraian: '', jumlah: '', um: '' }] });
             };
 
             const handleItemChange = (index, field, value) => {
@@ -125,220 +125,184 @@
                 setPrintData(newSJ);
                 setTimeout(() => {
                     window.print();
-                    setFormData({
-                        id: Date.now(),
-                        tanggal: new Date().toLocaleDateString('id-ID'),
-                        kepada_nama: '', kepada_alamat: '', nopol: '', transporter: '',
-                        items: [{ id: Date.now(), uraian: '', jumlah: '', um: '' }]
-                    });
-                }, 300);
+                    setPrintData(null);
+                }, 500);
             };
 
             return (
-                <div className="min-h-screen pb-10">
+                <div className="min-h-screen">
                     <div className="no-print">
-                        <nav className="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg text-sm">
-                            <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
-                                <div className="flex items-center gap-2 font-bold text-lg">
-                                    <Icon name="printer" className="text-blue-400"/> Print Surat Jalan
-                                </div>
-                                <div className="flex flex-wrap gap-1">
-                                    <button onClick={() => setActiveTab('transaksi')} className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition ${activeTab === 'transaksi' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><Icon name="file-text" className="w-4 h-4"/> Transaksi</button>
-                                    <button onClick={() => setActiveTab('mBarang')} className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition ${activeTab === 'mBarang' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><Icon name="package" className="w-4 h-4"/> Barang</button>
-                                    <button onClick={() => setActiveTab('mTruk')} className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition ${activeTab === 'mTruk' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><Icon name="truck" className="w-4 h-4"/> Truk</button>
-                                    <button onClick={() => setActiveTab('mCust')} className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition ${activeTab === 'mCust' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><Icon name="users" className="w-4 h-4"/> Customer</button>
-                                    <button onClick={() => setActiveTab('setting')} className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition ${activeTab === 'setting' ? 'bg-orange-600' : 'hover:bg-slate-800'}`}><Icon name="settings" className="w-4 h-4"/> Kalibrasi</button>
-                                </div>
-                            </div>
-                        </nav>
+                        <header className="bg-slate-900 text-white p-4 shadow-lg flex justify-between items-center">
+                            <div className="flex items-center gap-2 font-bold"><Icon name="printer" /> SJ PRINTER</div>
+                            <nav className="flex gap-2">
+                                <button onClick={() => setActiveTab('transaksi')} className={`px-4 py-1 rounded-full text-xs transition ${activeTab === 'transaksi' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>Input</button>
+                                <button onClick={() => setActiveTab('master')} className={`px-4 py-1 rounded-full text-xs transition ${activeTab === 'master' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>Master</button>
+                                <button onClick={() => setActiveTab('setting')} className={`px-4 py-1 rounded-full text-xs transition ${activeTab === 'setting' ? 'bg-orange-600' : 'hover:bg-slate-700'}`}>Kalibrasi</button>
+                            </nav>
+                        </header>
 
-                        <main className="max-w-6xl mx-auto p-6">
-                            {activeTab === 'transaksi' && (
-                                <div className="space-y-6">
-                                    <div className="card p-6 bg-white">
-                                        <h2 className="font-bold text-lg mb-4 text-blue-700">Input Surat Jalan</h2>
-                                        <form onSubmit={handlePrint} className="space-y-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-500">CUSTOMER</label>
-                                                    <input list="l-cust" name="kepada_nama" required value={formData.kepada_nama} onChange={handleHeaderChange} placeholder="Pilih..." />
-                                                    <datalist id="l-cust">{masterCustomers.map(c => <option key={c.id} value={c.nama}/>)}</datalist>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-500">ALAMAT (AUTO)</label>
-                                                    <input readOnly name="kepada_alamat" value={formData.kepada_alamat} className="bg-slate-50" />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-500">NO POLISI</label>
-                                                    <input list="l-truk" name="nopol" required value={formData.nopol} onChange={handleHeaderChange} placeholder="Pilih..." />
-                                                    <datalist id="l-truk">{masterTrucks.map(t => <option key={t.id} value={t.nopol}/>)}</datalist>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-500">DRIVER (AUTO)</label>
-                                                    <input readOnly name="transporter" value={formData.transporter} className="bg-slate-50" />
-                                                </div>
+                        <main className="p-6 max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2 space-y-6">
+                                {activeTab === 'transaksi' && (
+                                    <form onSubmit={handlePrint} className="card p-6 space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label>Customer</label>
+                                                <input list="l-cust" name="kepada_nama" required value={formData.kepada_nama} onChange={handleHeaderChange} placeholder="Cari..." />
+                                                <datalist id="l-cust">{masterCustomers.map(c => <option key={c.id} value={c.nama}/>)}</datalist>
                                             </div>
+                                            <div className="space-y-1">
+                                                <label>No Polisi</label>
+                                                <input list="l-truk" name="nopol" required value={formData.nopol} onChange={handleHeaderChange} placeholder="B 1234 XXX" />
+                                                <datalist id="l-truk">{masterTrucks.map(t => <option key={t.id} value={t.nopol}/>)}</datalist>
+                                            </div>
+                                        </div>
 
-                                            <div className="border rounded-xl p-4 bg-slate-50">
-                                                <div className="flex justify-between items-center mb-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                                    <span>Daftar Barang</span>
-                                                    <button type="button" onClick={addItemRow} className="bg-green-600 text-white px-3 py-1 rounded"> + Item </button>
-                                                </div>
+                                        <div className="bg-slate-50 p-4 rounded border">
+                                            <div className="flex justify-between mb-2 items-center">
+                                                <label>Detail Barang</label>
+                                                <button type="button" onClick={() => setFormData({...formData, items: [...formData.items, {id:Date.now(), uraian:'', jumlah:'', um:''}]})} className="bg-blue-100 text-blue-700 text-[10px] px-2 py-1 rounded font-bold hover:bg-blue-200">+ BARIS</button>
+                                            </div>
+                                            <div className="space-y-2">
                                                 {formData.items.map((item, index) => (
-                                                    <div key={item.id} className="flex gap-2 mb-2">
-                                                        <div className="flex-grow">
-                                                            <input list="l-item" value={item.uraian} onChange={(e) => handleItemChange(index, 'uraian', e.target.value)} required placeholder="Barang" />
-                                                            <datalist id="l-item">{masterItems.map(i => <option key={i.id} value={i.nama}/>)}</datalist>
-                                                        </div>
-                                                        <input type="number" step="any" value={item.jumlah} onChange={(e) => handleItemChange(index, 'jumlah', e.target.value)} required placeholder="Qty" className="w-20" />
-                                                        <input value={item.um} onChange={(e) => handleItemChange(index, 'um', e.target.value)} placeholder="Satuan" className="w-20" />
+                                                    <div key={item.id} className="flex gap-2">
+                                                        <input list="l-item" value={item.uraian} onChange={(e) => handleItemChange(index, 'uraian', e.target.value)} required placeholder="Nama Barang" className="flex-1" />
+                                                        <input type="number" value={item.jumlah} onChange={(e) => handleItemChange(index, 'jumlah', e.target.value)} required placeholder="Qty" className="w-20" />
+                                                        <input value={item.um} onChange={(e) => handleItemChange(index, 'um', e.target.value)} placeholder="Sat" className="w-16" />
+                                                        <button type="button" onClick={() => setFormData({...formData, items: formData.items.filter(it => it.id !== item.id)})} className="text-red-400 p-2">×</button>
+                                                        <datalist id="l-item">{masterItems.map(i => <option key={i.id} value={i.nama}/>)}</datalist>
                                                     </div>
                                                 ))}
                                             </div>
+                                        </div>
 
-                                            <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700"> CETAK KE EPSON (21.5 x 16.4) </button>
-                                        </form>
-                                    </div>
-                                    
-                                    {/* History Table */}
-                                    <div className="card overflow-hidden text-sm">
-                                        <div className="p-3 bg-slate-100 font-bold border-b">Riwayat</div>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-left">
-                                                <thead className="bg-slate-50">
-                                                    <tr>
-                                                        <th className="p-3">Tanggal</th>
-                                                        <th className="p-3">Customer</th>
-                                                        <th className="p-3">Truk</th>
-                                                        <th className="p-3 text-right">Aksi</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y">
-                                                    {entries.map(e => (
-                                                        <tr key={e.id}>
-                                                            <td className="p-3">{e.tanggal}</td>
-                                                            <td className="p-3 font-bold">{e.kepada_nama}</td>
-                                                            <td className="p-3">{e.nopol}</td>
-                                                            <td className="p-3 text-right">
-                                                                <button onClick={() => { setPrintData(e); setTimeout(() => window.print(), 200); }} className="text-blue-600 font-bold px-2">Cetak</button>
-                                                                <button onClick={() => setEntries(entries.filter(x => x.id !== e.id))} className="text-red-400 px-2">Hapus</button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                        <button type="submit" className="w-full bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg flex justify-center items-center gap-2">
+                                            <Icon name="printer" /> CETAK SEKARANG
+                                        </button>
+                                    </form>
+                                )}
+
+                                {activeTab === 'master' && (
+                                    <div className="space-y-6">
+                                        <div className="card p-4">
+                                            <h3 className="font-bold mb-4 text-sm">Master Barang</h3>
+                                            <form className="flex gap-2 mb-4" onSubmit={e => { e.preventDefault(); setMasterItems([...masterItems, {id:Date.now(), nama:e.target.n.value, satuan:e.target.s.value}]); e.target.reset(); }}>
+                                                <input name="n" placeholder="Barang" required />
+                                                <input name="s" placeholder="Sat" required className="w-20" />
+                                                <button className="bg-blue-600 text-white px-4 rounded">+</button>
+                                            </form>
+                                            <div className="text-xs divide-y">
+                                                {masterItems.map(i => <div key={i.id} className="py-2 flex justify-between">{i.nama} ({i.satuan}) <button onClick={() => setMasterItems(masterItems.filter(x => x.id !== i.id))} className="text-red-400">Hapus</button></div>)}
+                                            </div>
+                                        </div>
+                                        <div className="card p-4">
+                                            <h3 className="font-bold mb-4 text-sm">Master Customer</h3>
+                                            <form className="space-y-2" onSubmit={e => { e.preventDefault(); setMasterCustomers([...masterCustomers, {id:Date.now(), nama:e.target.n.value, alamat:e.target.a.value}]); e.target.reset(); }}>
+                                                <input name="n" placeholder="Nama Customer" required />
+                                                <textarea name="a" placeholder="Alamat (jika perlu)" />
+                                                <button className="w-full bg-blue-600 text-white py-1 rounded">Simpan</button>
+                                            </form>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Menu Master Lainnya (Sama seperti sebelumnya) */}
-                            {activeTab === 'mBarang' && (
-                                <div className="card p-6 max-w-xl mx-auto">
-                                    <h2 className="font-bold mb-4">Master Barang</h2>
-                                    <form className="flex gap-2 mb-4" onSubmit={e => {
-                                        e.preventDefault();
-                                        setMasterItems([...masterItems, { id: Date.now(), nama: e.target.nama.value, satuan: e.target.satuan.value }]);
-                                        e.target.reset();
-                                    }}>
-                                        <input name="nama" required placeholder="Nama Barang" />
-                                        <input name="satuan" required placeholder="Satuan" className="w-24" />
-                                        <button className="bg-blue-600 text-white px-4 rounded font-bold">Tambah</button>
-                                    </form>
-                                    <div className="divide-y border rounded max-h-60 overflow-y-auto">
-                                        {masterItems.map(i => <div key={i.id} className="p-2 flex justify-between">{i.nama} ({i.satuan}) <button onClick={() => setMasterItems(masterItems.filter(x => x.id !== i.id))} className="text-red-400">X</button></div>)}
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'mTruk' && (
-                                <div className="card p-6 max-w-xl mx-auto">
-                                    <h2 className="font-bold mb-4">Master Truk</h2>
-                                    <form className="flex gap-2 mb-4" onSubmit={e => {
-                                        e.preventDefault();
-                                        setMasterTrucks([...masterTrucks, { id: Date.now(), nopol: e.target.nopol.value, driver: e.target.driver.value }]);
-                                        e.target.reset();
-                                    }}>
-                                        <input name="nopol" required placeholder="No Polisi" />
-                                        <input name="driver" required placeholder="Driver" />
-                                        <button className="bg-blue-600 text-white px-4 rounded font-bold">Tambah</button>
-                                    </form>
-                                    <div className="divide-y border rounded max-h-60 overflow-y-auto">
-                                        {masterTrucks.map(t => <div key={t.id} className="p-2 flex justify-between">{t.nopol} - {t.driver} <button onClick={() => setMasterTrucks(masterTrucks.filter(x => x.id !== t.id))} className="text-red-400">X</button></div>)}
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'mCust' && (
-                                <div className="card p-6 max-w-xl mx-auto">
-                                    <h2 className="font-bold mb-4">Master Customer</h2>
-                                    <form className="space-y-2 mb-4" onSubmit={e => {
-                                        e.preventDefault();
-                                        setMasterCustomers([...masterCustomers, { id: Date.now(), nama: e.target.nama.value, alamat: e.target.alamat.value }]);
-                                        e.target.reset();
-                                    }}>
-                                        <input name="nama" required placeholder="Nama Customer" />
-                                        <textarea name="alamat" required placeholder="Alamat" />
-                                        <button className="w-full bg-blue-600 text-white py-2 rounded font-bold">Tambah</button>
-                                    </form>
-                                    <div className="divide-y border rounded max-h-60 overflow-y-auto text-sm">
-                                        {masterCustomers.map(c => <div key={c.id} className="p-2 flex justify-between"><div><b>{c.nama}</b><br/>{c.alamat}</div> <button onClick={() => setMasterCustomers(masterCustomers.filter(x => x.id !== c.id))} className="text-red-400">X</button></div>)}
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'setting' && (
-                                <div className="card p-6">
-                                    <h2 className="font-bold text-xl mb-4 text-orange-600">Kalibrasi Posisi (cm)</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        {Object.keys(positions).map(key => (
-                                            key !== 'line_height' && (
-                                                <div key={key} className="p-3 border rounded bg-slate-50">
-                                                    <label className="text-[10px] font-bold uppercase">{key}</label>
-                                                    <div className="flex gap-2">
-                                                        <input type="number" step="0.1" value={positions[key].top} onChange={e => setPositions({...positions, [key]: {...positions[key], top: parseFloat(e.target.value)}})} />
-                                                        <input type="number" step="0.1" value={positions[key].left} onChange={e => setPositions({...positions, [key]: {...positions[key], left: parseFloat(e.target.value)}})} />
+                                {activeTab === 'setting' && (
+                                    <div className="card p-6">
+                                        <h2 className="font-bold text-lg mb-4 text-orange-600">Kalibrasi Presisi (cm)</h2>
+                                        <p className="text-[10px] text-slate-500 mb-4">*Ubah angka jika cetakan tidak pas di kolom template fisik.</p>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {Object.keys(positions).map(key => (
+                                                key !== 'line_height' && (
+                                                    <div key={key} className="p-2 border rounded bg-slate-50">
+                                                        <label className="text-[10px] block">{key}</label>
+                                                        <div className="flex gap-2">
+                                                            <div className="flex-1">
+                                                                <span className="text-[9px] text-slate-400">Atas</span>
+                                                                <input type="number" step="0.1" value={positions[key].top} onChange={e => setPositions({...positions, [key]: {...positions[key], top: parseFloat(e.target.value)}})} className="p-1 h-8" />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <span className="text-[9px] text-slate-400">Kiri</span>
+                                                                <input type="number" step="0.1" value={positions[key].left} onChange={e => setPositions({...positions, [key]: {...positions[key], left: parseFloat(e.target.value)}})} className="p-1 h-8" />
+                                                            </div>
+                                                        </div>
                                                     </div>
+                                                )
+                                            ))}
+                                        </div>
+                                        <div className="mt-4 p-2 bg-blue-50 border rounded">
+                                            <label className="text-[10px]">Spasi Baris Tabel (Jarak antar barang)</label>
+                                            <input type="number" step="0.05" value={positions.line_height.val} onChange={e => setPositions({...positions, line_height: {val: parseFloat(e.target.value)}})} className="w-24 mt-1" />
+                                        </div>
+                                        <button onClick={() => setPositions(defaultPos)} className="mt-6 text-red-500 text-xs underline">Reset ke Pengaturan Awal</button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="card p-4 bg-yellow-50 border-yellow-200">
+                                    <h3 className="font-bold text-xs flex items-center gap-1"><Icon name="info" className="w-3 h-3"/> INFO TEMPLATE</h3>
+                                    <ul className="text-[10px] space-y-1 mt-2 list-disc ml-3 text-yellow-800">
+                                        <li>Ukuran kertas: 21.5cm x 16.4cm.</li>
+                                        <li>Hanya teks yang dikirim ke printer.</li>
+                                        <li>Pastikan printer dot-matrix sudah terhubung.</li>
+                                        <li>Atur margin printer di Control Panel ke 0.</li>
+                                    </ul>
+                                </div>
+                                <div className="card overflow-hidden">
+                                    <div className="p-2 bg-slate-800 text-white text-[10px] font-bold">5 TRANSAKSI TERAKHIR</div>
+                                    <div className="divide-y max-h-64 overflow-y-auto">
+                                        {entries.slice(0, 10).map(e => (
+                                            <div key={e.id} className="p-3 text-[11px] hover:bg-slate-50 flex justify-between">
+                                                <div>
+                                                    <div className="font-bold">{e.kepada_nama}</div>
+                                                    <div className="text-slate-400">{e.tanggal} | {e.nopol}</div>
                                                 </div>
-                                            )
+                                                <button onClick={() => { setPrintData(e); setTimeout(() => window.print(), 200); }} className="text-blue-600 font-bold hover:underline">CETAK</button>
+                                            </div>
                                         ))}
                                     </div>
-                                    <div className="mt-4 p-3 border rounded bg-blue-50">
-                                        <label className="text-[10px] font-bold uppercase">Spasi Baris Item (cm)</label>
-                                        <input type="number" step="0.1" value={positions.line_height.val} onChange={e => setPositions({...positions, line_height: {val: parseFloat(e.target.value)}})} />
-                                    </div>
-                                    <button onClick={() => setPositions(defaultPos)} className="mt-6 text-red-500 text-xs underline">Reset ke Default Instruksi</button>
                                 </div>
-                            )}
+                            </div>
                         </main>
                     </div>
 
-                    {/* AREA CETAK */}
+                    {/* AREA CETAK: SESUAI POSISI FOTO TEMPLATE */}
                     {printData && (
                         <div className="print-area">
-                            {/* Header sesuai instruksi */}
-                            <div className="field-data" style={{ top: `${positions.tanggal.top}cm`, left: `${positions.tanggal.left}cm` }}>{printData.tanggal}</div>
-                            
-                            <div className="field-data" style={{ top: `${positions.kepada.top}cm`, left: `${positions.kepada.left}cm`, width: '10cm' }}>
-                                <div className="font-bold uppercase">{printData.kepada_nama}</div>
-                                <div className="text-[9pt]">{printData.kepada_alamat}</div>
+                            {/* Header: Tanggal & Nama Customer */}
+                            <div className="field-data" style={{ top: `${positions.tanggal.top}cm`, left: `${positions.tanggal.left}cm` }}>
+                                {printData.tanggal}
                             </div>
                             
-                            {/* Items Tabel mulai dari 9cm */}
+                            <div className="field-data" style={{ top: `${positions.kepada.top}cm`, left: `${positions.kepada.left}cm`, width: '10cm' }}>
+                                <strong>{printData.kepada_nama}</strong>
+                            </div>
+                            
+                            {/* Tabel Barang */}
                             {printData.items.map((item, index) => {
                                 const offset = index * positions.line_height.val;
                                 return (
                                     <React.Fragment key={item.id}>
-                                        <div className="field-data" style={{ top: `${positions.barang_start.top + offset}cm`, left: `${positions.barang_start.left}cm` }}>{item.uraian}</div>
-                                        <div className="field-data" style={{ top: `${positions.qty_start.top + offset}cm`, left: `${positions.qty_start.left}cm` }}>{item.jumlah}</div>
-                                        <div className="field-data" style={{ top: `${positions.sat_start.top + offset}cm`, left: `${positions.sat_start.left}cm` }}>{item.um}</div>
+                                        <div className="field-data" style={{ top: `${positions.barang_start.top + offset}cm`, left: `${positions.barang_start.left}cm` }}>
+                                            {item.uraian}
+                                        </div>
+                                        <div className="field-data" style={{ top: `${positions.qty_start.top + offset}cm`, left: `${positions.qty_start.left}cm` }}>
+                                            {item.jumlah}
+                                        </div>
+                                        <div className="field-data" style={{ top: `${positions.sat_start.top + offset}cm`, left: `${positions.sat_start.left}cm` }}>
+                                            {item.um}
+                                        </div>
                                     </React.Fragment>
                                 );
                             })}
                             
-                            {/* Footer Nopol & Driver */}
-                            <div className="field-data font-bold" style={{ top: `${positions.nopol.top}cm`, left: `${positions.nopol.left}cm` }}>{printData.nopol}</div>
-                            <div className="field-data" style={{ top: `${positions.driver.top}cm`, left: `${positions.driver.left}cm` }}>{printData.transporter}</div>
+                            {/* Footer: No Polisi & Nama Sopir */}
+                            <div className="field-data" style={{ top: `${positions.nopol.top}cm`, left: `${positions.nopol.left}cm` }}>
+                                {printData.nopol}
+                            </div>
+                            <div className="field-data" style={{ top: `${positions.driver.top}cm`, left: `${positions.driver.left}cm` }}>
+                                {printData.transporter}
+                            </div>
                         </div>
                     )}
                 </div>
