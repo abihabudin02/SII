@@ -3,324 +3,342 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Surat Jalan & Blanko</title>
+    <title>Sistem Surat Jalan Multi-Item - Epson LX 310</title>
     
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Load React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Load Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <!-- Load Lucide Icons (Static Version for better compatibility) -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
         @media print {
             .no-print { display: none !important; }
-            .print-only { display: block !important; position: absolute; top:0; left:0; width:100%; height:100%; background:white; padding:20px; z-index:9999; }
-            @page { size: auto; margin: 0mm; }
-            body { background: white; }
+            body { background: white; margin: 0; padding: 0; }
+            .print-area {
+                display: block !important;
+                position: relative;
+                width: 21.5cm; 
+                height: 16.4cm;
+                font-family: 'Courier New', Courier, monospace; 
+                font-size: 10pt;
+                color: black;
+                overflow: hidden;
+            }
+            .field-data { position: absolute; white-space: pre-wrap; }
+            @page { size: 21.5cm 16.4cm; margin: 0; }
         }
-        .print-only { display: none; }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
-
-        .icon-container svg {
-            width: 1.25rem;
-            height: 1.25rem;
-        }
+        .print-area { display: none; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border: 1px solid #e5e7eb; }
+        input, select, textarea { border: 1px solid #d1d5db; border-radius: 6px; padding: 0.4rem; width: 100%; transition: all 0.2s; font-size: 0.875rem; }
+        input:focus { border-color: #3b82f6; ring: 2px; outline: none; }
+        .btn-primary { background: #2563eb; color: white; font-weight: bold; padding: 0.6rem; border-radius: 8px; transition: all 0.2s; }
+        .btn-primary:hover { background: #1d4ed8; }
     </style>
 </head>
-<body class="bg-gray-100 font-sans text-slate-800">
+<body class="bg-slate-50 text-slate-800">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect } = React;
 
-        // Komponen Pembungkus Ikon agar kompatibel dengan Lucide static
         const Icon = ({ name, className = "" }) => {
-            const iconRef = useRef(null);
-
             useEffect(() => {
-                if (window.lucide) {
-                    window.lucide.createIcons({
-                        attrs: { class: className },
-                        nameAttr: 'data-lucide'
-                    });
-                }
-            }, [name, className]);
-
+                if (window.lucide) window.lucide.createIcons();
+            }, [name]);
             return <i data-lucide={name} className={className}></i>;
         };
 
         function App() {
-            const [activeTab, setActiveTab] = useState('transaksi'); 
-            const [entries, setEntries] = useState(() => JSON.parse(localStorage.getItem('blanko_entries') || '[]'));
-            const [masterItems, setMasterItems] = useState(() => JSON.parse(localStorage.getItem('master_items') || '[]'));
-            const [masterTrucks, setMasterTrucks] = useState(() => JSON.parse(localStorage.getItem('master_trucks') || '[]'));
-            const [masterCustomers, setMasterCustomers] = useState(() => JSON.parse(localStorage.getItem('master_customers') || '[]'));
-
-            const [formData, setFormData] = useState({
-                tanggal: new Date().toISOString().split('T')[0],
-                kepada: '', uraian: '', jumlah: '', um: '', keterangan: '', transporter: '', nopol: ''
-            });
-
-            const [syncStatus, setSyncStatus] = useState('idle');
+            const [activeTab, setActiveTab] = useState('transaksi');
+            const [entries, setEntries] = useState(() => JSON.parse(localStorage.getItem('sj_entries_v2') || '[]'));
             const [printData, setPrintData] = useState(null);
 
-            // Form State Master
-            const [itemForm, setItemForm] = useState({ nama: '', satuan: '', ket: '' });
-            const [truckForm, setTruckForm] = useState({ nopol: '', transporter: '', nohp: '' });
-            const [customerForm, setCustomerForm] = useState({ nama: '', alamat: '' });
+            const [masterItems, setMasterItems] = useState(() => JSON.parse(localStorage.getItem('m_items') || '[]'));
+            const [masterTrucks, setMasterTrucks] = useState(() => JSON.parse(localStorage.getItem('m_trucks') || '[]'));
+            const [masterCustomers, setMasterCustomers] = useState(() => JSON.parse(localStorage.getItem('m_customers') || '[]'));
 
-            useEffect(() => localStorage.setItem('blanko_entries', JSON.stringify(entries)), [entries]);
-            useEffect(() => localStorage.setItem('master_items', JSON.stringify(masterItems)), [masterItems]);
-            useEffect(() => localStorage.setItem('master_trucks', JSON.stringify(masterTrucks)), [masterTrucks]);
-            useEffect(() => localStorage.setItem('master_customers', JSON.stringify(masterCustomers)), [masterCustomers]);
+            // Sesuai instruksi User:
+            // Tanggal: Atas 5.5, Kanan/Samping 16.5
+            // Kepada: Atas 6.5, Samping 5.0
+            // Item: Atas 9.0, Samping 3.5
+            const defaultPos = {
+                tanggal: { top: 5.5, left: 16.5 },
+                kepada: { top: 6.5, left: 5.0 },
+                barang_start: { top: 9.0, left: 3.5 },
+                qty_start: { top: 9.0, left: 13.0 },
+                sat_start: { top: 9.0, left: 15.5 },
+                line_height: { val: 0.6 },
+                nopol: { top: 13.5, left: 8.5 },
+                driver: { top: 14.5, left: 8.5 }
+            };
+            const [positions, setPositions] = useState(() => JSON.parse(localStorage.getItem('sj_pos_v2') || JSON.stringify(defaultPos)));
 
-            const handleTransChange = (e) => {
+            const [formData, setFormData] = useState({
+                id: Date.now(),
+                tanggal: new Date().toLocaleDateString('id-ID'),
+                kepada_nama: '',
+                kepada_alamat: '',
+                nopol: '',
+                transporter: '',
+                items: [{ id: Date.now(), uraian: '', jumlah: '', um: '' }]
+            });
+
+            useEffect(() => localStorage.setItem('sj_entries_v2', JSON.stringify(entries)), [entries]);
+            useEffect(() => localStorage.setItem('m_items', JSON.stringify(masterItems)), [masterItems]);
+            useEffect(() => localStorage.setItem('m_trucks', JSON.stringify(masterTrucks)), [masterTrucks]);
+            useEffect(() => localStorage.setItem('m_customers', JSON.stringify(masterCustomers)), [masterCustomers]);
+            useEffect(() => localStorage.setItem('sj_pos_v2', JSON.stringify(positions)), [positions]);
+
+            const handleHeaderChange = (e) => {
                 const { name, value } = e.target;
                 let updates = { [name]: value };
-
-                if (name === 'kepada') {
-                    const found = masterCustomers.find(c => c.nama.toLowerCase() === value.toLowerCase());
-                    if (found) updates.keterangan = found.alamat;
-                }
-                if (name === 'uraian') {
-                    const found = masterItems.find(i => i.nama.toLowerCase() === value.toLowerCase());
-                    if (found) updates.um = found.satuan;
+                if (name === 'kepada_nama') {
+                    const found = masterCustomers.find(c => c.nama === value);
+                    if (found) updates.kepada_alamat = found.alamat;
                 }
                 if (name === 'nopol') {
-                    const clean = value.replace(/\s/g, '').toLowerCase();
-                    const found = masterTrucks.find(t => t.nopol.replace(/\s/g, '').toLowerCase() === clean);
-                    if (found) updates.transporter = found.transporter;
+                    const found = masterTrucks.find(t => t.nopol === value);
+                    if (found) updates.transporter = found.driver;
                 }
-
                 setFormData(prev => ({ ...prev, ...updates }));
             };
 
-            const handleTransSubmit = (e) => {
-                e.preventDefault();
-                const newEntry = { id: Date.now(), ...formData };
-                setEntries([newEntry, ...entries]);
-                setPrintData(newEntry);
-                setFormData({ ...formData, kepada: '', uraian: '', jumlah: '', um: '', keterangan: '', transporter: '', nopol: '' });
-                setTimeout(() => window.print(), 500);
+            const addItemRow = () => {
+                setFormData({ ...formData, items: [...formData.items, { id: Date.now(), uraian: '', jumlah: '', um: '' }] });
             };
 
-            const deleteEntry = (id) => confirm('Hapus transaksi?') && setEntries(entries.filter(e => e.id !== id));
+            const handleItemChange = (index, field, value) => {
+                const newItems = [...formData.items];
+                newItems[index][field] = value;
+                if (field === 'uraian') {
+                    const found = masterItems.find(i => i.nama === value);
+                    if (found) newItems[index].um = found.satuan;
+                }
+                setFormData({ ...formData, items: newItems });
+            };
+
+            const handlePrint = (e) => {
+                e.preventDefault();
+                const newSJ = { ...formData, id: Date.now() };
+                setEntries([newSJ, ...entries]);
+                setPrintData(newSJ);
+                setTimeout(() => {
+                    window.print();
+                    setFormData({
+                        id: Date.now(),
+                        tanggal: new Date().toLocaleDateString('id-ID'),
+                        kepada_nama: '', kepada_alamat: '', nopol: '', transporter: '',
+                        items: [{ id: Date.now(), uraian: '', jumlah: '', um: '' }]
+                    });
+                }, 300);
+            };
 
             return (
-                <div className="min-h-screen">
-                    {/* Navigation */}
-                    <nav className="no-print bg-slate-900 text-white shadow-lg sticky top-0 z-50">
-                        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
-                            <div className="flex items-center gap-2 font-bold text-xl">
-                                <Icon name="database" className="text-blue-400" />
-                                <span>Sistem Blanko</span>
+                <div className="min-h-screen pb-10">
+                    <div className="no-print">
+                        <nav className="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg text-sm">
+                            <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
+                                <div className="flex items-center gap-2 font-bold text-lg">
+                                    <Icon name="printer" className="text-blue-400"/> Print Surat Jalan
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                    <button onClick={() => setActiveTab('transaksi')} className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition ${activeTab === 'transaksi' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><Icon name="file-text" className="w-4 h-4"/> Transaksi</button>
+                                    <button onClick={() => setActiveTab('mBarang')} className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition ${activeTab === 'mBarang' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><Icon name="package" className="w-4 h-4"/> Barang</button>
+                                    <button onClick={() => setActiveTab('mTruk')} className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition ${activeTab === 'mTruk' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><Icon name="truck" className="w-4 h-4"/> Truk</button>
+                                    <button onClick={() => setActiveTab('mCust')} className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition ${activeTab === 'mCust' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><Icon name="users" className="w-4 h-4"/> Customer</button>
+                                    <button onClick={() => setActiveTab('setting')} className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition ${activeTab === 'setting' ? 'bg-orange-600' : 'hover:bg-slate-800'}`}><Icon name="settings" className="w-4 h-4"/> Kalibrasi</button>
+                                </div>
                             </div>
-                            <div className="flex gap-4">
-                                <button onClick={() => setActiveTab('transaksi')} className={`flex items-center gap-2 px-3 py-2 rounded ${activeTab === 'transaksi' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}>
-                                    <Icon name="home" /> Transaksi
-                                </button>
-                                <button onClick={() => setActiveTab('masterBarang')} className={`flex items-center gap-2 px-3 py-2 rounded ${activeTab === 'masterBarang' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}>
-                                    <Icon name="package" /> Barang
-                                </button>
-                                <button onClick={() => setActiveTab('masterTruk')} className={`flex items-center gap-2 px-3 py-2 rounded ${activeTab === 'masterTruk' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}>
-                                    <Icon name="truck" /> Truk
-                                </button>
-                                <button onClick={() => setActiveTab('masterCustomer')} className={`flex items-center gap-2 px-3 py-2 rounded ${activeTab === 'masterCustomer' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}>
-                                    <Icon name="users" /> Customer
-                                </button>
-                            </div>
-                        </div>
-                    </nav>
+                        </nav>
 
-                    <main className="no-print max-w-7xl mx-auto p-6">
-                        {activeTab === 'transaksi' && (
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                <div className="lg:col-span-1">
-                                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                                        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                            <Icon name="file-text" className="text-blue-600"/> Input Surat Jalan
-                                        </h2>
-                                        <form onSubmit={handleTransSubmit} className="space-y-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-gray-400 uppercase">Tanggal</label>
-                                                <input type="date" name="tanggal" required value={formData.tanggal} onChange={handleTransChange} className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500" />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-gray-400 uppercase">Customer</label>
-                                                <input list="customers" name="kepada" required value={formData.kepada} onChange={handleTransChange} className="w-full p-2 border rounded" placeholder="Pilih Customer..." />
-                                                <datalist id="customers">{masterCustomers.map(c => <option key={c.id} value={c.nama}/>)}</datalist>
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-gray-400 uppercase">Barang</label>
-                                                <input list="items" name="uraian" required value={formData.uraian} onChange={handleTransChange} className="w-full p-2 border rounded" placeholder="Pilih Barang..." />
-                                                <datalist id="items">{masterItems.map(i => <option key={i.id} value={i.nama}/>)}</datalist>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
+                        <main className="max-w-6xl mx-auto p-6">
+                            {activeTab === 'transaksi' && (
+                                <div className="space-y-6">
+                                    <div className="card p-6 bg-white">
+                                        <h2 className="font-bold text-lg mb-4 text-blue-700">Input Surat Jalan</h2>
+                                        <form onSubmit={handlePrint} className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                 <div>
-                                                    <label className="text-xs font-bold text-gray-400 uppercase">Jumlah</label>
-                                                    <input type="number" name="jumlah" required value={formData.jumlah} onChange={handleTransChange} className="w-full p-2 border rounded" />
+                                                    <label className="text-xs font-bold text-slate-500">CUSTOMER</label>
+                                                    <input list="l-cust" name="kepada_nama" required value={formData.kepada_nama} onChange={handleHeaderChange} placeholder="Pilih..." />
+                                                    <datalist id="l-cust">{masterCustomers.map(c => <option key={c.id} value={c.nama}/>)}</datalist>
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs font-bold text-gray-400 uppercase">Satuan</label>
-                                                    <input type="text" name="um" value={formData.um} readOnly className="w-full p-2 border rounded bg-gray-50" />
+                                                    <label className="text-xs font-bold text-slate-500">ALAMAT (AUTO)</label>
+                                                    <input readOnly name="kepada_alamat" value={formData.kepada_alamat} className="bg-slate-50" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-500">NO POLISI</label>
+                                                    <input list="l-truk" name="nopol" required value={formData.nopol} onChange={handleHeaderChange} placeholder="Pilih..." />
+                                                    <datalist id="l-truk">{masterTrucks.map(t => <option key={t.id} value={t.nopol}/>)}</datalist>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-500">DRIVER (AUTO)</label>
+                                                    <input readOnly name="transporter" value={formData.transporter} className="bg-slate-50" />
                                                 </div>
                                             </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-gray-400 uppercase">No Polisi</label>
-                                                <input list="trucks" name="nopol" required value={formData.nopol} onChange={handleTransChange} className="w-full p-2 border rounded bg-yellow-50" placeholder="Pilih Truk..." />
-                                                <datalist id="trucks">{masterTrucks.map(t => <option key={t.id} value={t.nopol}/>)}</datalist>
+
+                                            <div className="border rounded-xl p-4 bg-slate-50">
+                                                <div className="flex justify-between items-center mb-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                                    <span>Daftar Barang</span>
+                                                    <button type="button" onClick={addItemRow} className="bg-green-600 text-white px-3 py-1 rounded"> + Item </button>
+                                                </div>
+                                                {formData.items.map((item, index) => (
+                                                    <div key={item.id} className="flex gap-2 mb-2">
+                                                        <div className="flex-grow">
+                                                            <input list="l-item" value={item.uraian} onChange={(e) => handleItemChange(index, 'uraian', e.target.value)} required placeholder="Barang" />
+                                                            <datalist id="l-item">{masterItems.map(i => <option key={i.id} value={i.nama}/>)}</datalist>
+                                                        </div>
+                                                        <input type="number" step="any" value={item.jumlah} onChange={(e) => handleItemChange(index, 'jumlah', e.target.value)} required placeholder="Qty" className="w-20" />
+                                                        <input value={item.um} onChange={(e) => handleItemChange(index, 'um', e.target.value)} placeholder="Satuan" className="w-20" />
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 flex justify-center gap-2 items-center">
-                                                <Icon name="printer" /> Simpan & Cetak
-                                            </button>
+
+                                            <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700"> CETAK KE EPSON (21.5 x 16.4) </button>
                                         </form>
                                     </div>
-                                </div>
-
-                                <div className="lg:col-span-2">
-                                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="bg-slate-50 text-slate-500 font-bold">
-                                                <tr>
-                                                    <th className="px-4 py-4">Tanggal</th>
-                                                    <th className="px-4 py-4">Customer</th>
-                                                    <th className="px-4 py-4">Barang</th>
-                                                    <th className="px-4 py-4">Nopol</th>
-                                                    <th className="px-4 py-4 text-center">Aksi</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-100">
-                                                {entries.map(e => (
-                                                    <tr key={e.id} className="hover:bg-slate-50">
-                                                        <td className="px-4 py-3">{e.tanggal}</td>
-                                                        <td className="px-4 py-3 font-medium">{e.kepada}</td>
-                                                        <td className="px-4 py-3">{e.jumlah} {e.um} - {e.uraian}</td>
-                                                        <td className="px-4 py-3 font-mono text-xs"><span className="bg-yellow-100 px-2 py-1 rounded">{e.nopol}</span></td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <button onClick={() => deleteEntry(e.id)} className="text-red-400 hover:text-red-600 p-2">
-                                                                <Icon name="trash-2" />
-                                                            </button>
-                                                        </td>
+                                    
+                                    {/* History Table */}
+                                    <div className="card overflow-hidden text-sm">
+                                        <div className="p-3 bg-slate-100 font-bold border-b">Riwayat</div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left">
+                                                <thead className="bg-slate-50">
+                                                    <tr>
+                                                        <th className="p-3">Tanggal</th>
+                                                        <th className="p-3">Customer</th>
+                                                        <th className="p-3">Truk</th>
+                                                        <th className="p-3 text-right">Aksi</th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                </thead>
+                                                <tbody className="divide-y">
+                                                    {entries.map(e => (
+                                                        <tr key={e.id}>
+                                                            <td className="p-3">{e.tanggal}</td>
+                                                            <td className="p-3 font-bold">{e.kepada_nama}</td>
+                                                            <td className="p-3">{e.nopol}</td>
+                                                            <td className="p-3 text-right">
+                                                                <button onClick={() => { setPrintData(e); setTimeout(() => window.print(), 200); }} className="text-blue-600 font-bold px-2">Cetak</button>
+                                                                <button onClick={() => setEntries(entries.filter(x => x.id !== e.id))} className="text-red-400 px-2">Hapus</button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Master Views (Sederhana untuk fungsionalitas) */}
-                        {activeTab === 'masterBarang' && (
-                            <div className="bg-white p-6 rounded-xl border">
-                                <h2 className="text-xl font-bold mb-4">Master Barang</h2>
-                                <form className="flex gap-2 mb-6" onSubmit={(e) => {
-                                    e.preventDefault();
-                                    setMasterItems([...masterItems, { id: Date.now(), ...itemForm }]);
-                                    setItemForm({ nama: '', satuan: '', ket: '' });
-                                }}>
-                                    <input required placeholder="Nama" className="p-2 border rounded" value={itemForm.nama} onChange={e => setItemForm({...itemForm, nama: e.target.value})} />
-                                    <input required placeholder="Satuan" className="p-2 border rounded" value={itemForm.satuan} onChange={e => setItemForm({...itemForm, satuan: e.target.value})} />
-                                    <button className="bg-blue-600 text-white px-4 py-2 rounded">Tambah</button>
-                                </form>
-                                <ul className="divide-y">
-                                    {masterItems.map(i => <li key={i.id} className="py-2 flex justify-between">{i.nama} ({i.satuan}) <button onClick={() => setMasterItems(masterItems.filter(x => x.id !== i.id))} className="text-red-500"><Icon name="x"/></button></li>)}
-                                </ul>
-                            </div>
-                        )}
+                            {/* Menu Master Lainnya (Sama seperti sebelumnya) */}
+                            {activeTab === 'mBarang' && (
+                                <div className="card p-6 max-w-xl mx-auto">
+                                    <h2 className="font-bold mb-4">Master Barang</h2>
+                                    <form className="flex gap-2 mb-4" onSubmit={e => {
+                                        e.preventDefault();
+                                        setMasterItems([...masterItems, { id: Date.now(), nama: e.target.nama.value, satuan: e.target.satuan.value }]);
+                                        e.target.reset();
+                                    }}>
+                                        <input name="nama" required placeholder="Nama Barang" />
+                                        <input name="satuan" required placeholder="Satuan" className="w-24" />
+                                        <button className="bg-blue-600 text-white px-4 rounded font-bold">Tambah</button>
+                                    </form>
+                                    <div className="divide-y border rounded max-h-60 overflow-y-auto">
+                                        {masterItems.map(i => <div key={i.id} className="p-2 flex justify-between">{i.nama} ({i.satuan}) <button onClick={() => setMasterItems(masterItems.filter(x => x.id !== i.id))} className="text-red-400">X</button></div>)}
+                                    </div>
+                                </div>
+                            )}
 
-                        {activeTab === 'masterTruk' && (
-                            <div className="bg-white p-6 rounded-xl border">
-                                <h2 className="text-xl font-bold mb-4">Master Truk</h2>
-                                <form className="flex gap-2 mb-6" onSubmit={(e) => {
-                                    e.preventDefault();
-                                    setMasterTrucks([...masterTrucks, { id: Date.now(), ...truckForm }]);
-                                    setTruckForm({ nopol: '', transporter: '', nohp: '' });
-                                }}>
-                                    <input required placeholder="No Polisi" className="p-2 border rounded" value={truckForm.nopol} onChange={e => setTruckForm({...truckForm, nopol: e.target.value.toUpperCase()})} />
-                                    <input required placeholder="Transporter" className="p-2 border rounded" value={truckForm.transporter} onChange={e => setTruckForm({...truckForm, transporter: e.target.value})} />
-                                    <button className="bg-blue-600 text-white px-4 py-2 rounded">Tambah</button>
-                                </form>
-                                <ul className="divide-y">
-                                    {masterTrucks.map(t => <li key={t.id} className="py-2 flex justify-between">{t.nopol} - {t.transporter} <button onClick={() => setMasterTrucks(masterTrucks.filter(x => x.id !== t.id))} className="text-red-500"><Icon name="x"/></button></li>)}
-                                </ul>
-                            </div>
-                        )}
+                            {activeTab === 'mTruk' && (
+                                <div className="card p-6 max-w-xl mx-auto">
+                                    <h2 className="font-bold mb-4">Master Truk</h2>
+                                    <form className="flex gap-2 mb-4" onSubmit={e => {
+                                        e.preventDefault();
+                                        setMasterTrucks([...masterTrucks, { id: Date.now(), nopol: e.target.nopol.value, driver: e.target.driver.value }]);
+                                        e.target.reset();
+                                    }}>
+                                        <input name="nopol" required placeholder="No Polisi" />
+                                        <input name="driver" required placeholder="Driver" />
+                                        <button className="bg-blue-600 text-white px-4 rounded font-bold">Tambah</button>
+                                    </form>
+                                    <div className="divide-y border rounded max-h-60 overflow-y-auto">
+                                        {masterTrucks.map(t => <div key={t.id} className="p-2 flex justify-between">{t.nopol} - {t.driver} <button onClick={() => setMasterTrucks(masterTrucks.filter(x => x.id !== t.id))} className="text-red-400">X</button></div>)}
+                                    </div>
+                                </div>
+                            )}
 
-                        {activeTab === 'masterCustomer' && (
-                            <div className="bg-white p-6 rounded-xl border">
-                                <h2 className="text-xl font-bold mb-4">Master Customer</h2>
-                                <form className="flex flex-col gap-2 mb-6 max-w-sm" onSubmit={(e) => {
-                                    e.preventDefault();
-                                    setMasterCustomers([...masterCustomers, { id: Date.now(), ...customerForm }]);
-                                    setCustomerForm({ nama: '', alamat: '' });
-                                }}>
-                                    <input required placeholder="Nama" className="p-2 border rounded" value={customerForm.nama} onChange={e => setCustomerForm({...customerForm, nama: e.target.value})} />
-                                    <input required placeholder="Alamat" className="p-2 border rounded" value={customerForm.alamat} onChange={e => setCustomerForm({...customerForm, alamat: e.target.value})} />
-                                    <button className="bg-blue-600 text-white px-4 py-2 rounded">Tambah</button>
-                                </form>
-                                <ul className="divide-y">
-                                    {masterCustomers.map(c => <li key={c.id} className="py-2 flex justify-between">{c.nama} - {c.alamat} <button onClick={() => setMasterCustomers(masterCustomers.filter(x => x.id !== c.id))} className="text-red-500"><Icon name="x"/></button></li>)}
-                                </ul>
-                            </div>
-                        )}
-                    </main>
+                            {activeTab === 'mCust' && (
+                                <div className="card p-6 max-w-xl mx-auto">
+                                    <h2 className="font-bold mb-4">Master Customer</h2>
+                                    <form className="space-y-2 mb-4" onSubmit={e => {
+                                        e.preventDefault();
+                                        setMasterCustomers([...masterCustomers, { id: Date.now(), nama: e.target.nama.value, alamat: e.target.alamat.value }]);
+                                        e.target.reset();
+                                    }}>
+                                        <input name="nama" required placeholder="Nama Customer" />
+                                        <textarea name="alamat" required placeholder="Alamat" />
+                                        <button className="w-full bg-blue-600 text-white py-2 rounded font-bold">Tambah</button>
+                                    </form>
+                                    <div className="divide-y border rounded max-h-60 overflow-y-auto text-sm">
+                                        {masterCustomers.map(c => <div key={c.id} className="p-2 flex justify-between"><div><b>{c.nama}</b><br/>{c.alamat}</div> <button onClick={() => setMasterCustomers(masterCustomers.filter(x => x.id !== c.id))} className="text-red-400">X</button></div>)}
+                                    </div>
+                                </div>
+                            )}
 
-                    {/* Print Preview Area */}
+                            {activeTab === 'setting' && (
+                                <div className="card p-6">
+                                    <h2 className="font-bold text-xl mb-4 text-orange-600">Kalibrasi Posisi (cm)</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        {Object.keys(positions).map(key => (
+                                            key !== 'line_height' && (
+                                                <div key={key} className="p-3 border rounded bg-slate-50">
+                                                    <label className="text-[10px] font-bold uppercase">{key}</label>
+                                                    <div className="flex gap-2">
+                                                        <input type="number" step="0.1" value={positions[key].top} onChange={e => setPositions({...positions, [key]: {...positions[key], top: parseFloat(e.target.value)}})} />
+                                                        <input type="number" step="0.1" value={positions[key].left} onChange={e => setPositions({...positions, [key]: {...positions[key], left: parseFloat(e.target.value)}})} />
+                                                    </div>
+                                                </div>
+                                            )
+                                        ))}
+                                    </div>
+                                    <div className="mt-4 p-3 border rounded bg-blue-50">
+                                        <label className="text-[10px] font-bold uppercase">Spasi Baris Item (cm)</label>
+                                        <input type="number" step="0.1" value={positions.line_height.val} onChange={e => setPositions({...positions, line_height: {val: parseFloat(e.target.value)}})} />
+                                    </div>
+                                    <button onClick={() => setPositions(defaultPos)} className="mt-6 text-red-500 text-xs underline">Reset ke Default Instruksi</button>
+                                </div>
+                            )}
+                        </main>
+                    </div>
+
+                    {/* AREA CETAK */}
                     {printData && (
-                        <div className="print-only">
-                            <div className="border-b-2 border-black pb-4 mb-6 text-center">
-                                <h1 className="text-2xl font-bold uppercase">Surat Jalan</h1>
-                                <p>No. Ref: SJ-{printData.id}</p>
+                        <div className="print-area">
+                            {/* Header sesuai instruksi */}
+                            <div className="field-data" style={{ top: `${positions.tanggal.top}cm`, left: `${positions.tanggal.left}cm` }}>{printData.tanggal}</div>
+                            
+                            <div className="field-data" style={{ top: `${positions.kepada.top}cm`, left: `${positions.kepada.left}cm`, width: '10cm' }}>
+                                <div className="font-bold uppercase">{printData.kepada_nama}</div>
+                                <div className="text-[9pt]">{printData.kepada_alamat}</div>
                             </div>
-                            <div className="flex justify-between mb-8">
-                                <div>
-                                    <p className="font-bold">Pengirim:</p>
-                                    <p>PT. LOGISTIK JAYA</p>
-                                    <p>Gudang Utama - Jakarta</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold">Penerima:</p>
-                                    <p>{printData.kepada}</p>
-                                    <p>{printData.keterangan}</p>
-                                    <p className="mt-2">Tanggal: {printData.tanggal}</p>
-                                </div>
-                            </div>
-                            <table className="w-full border-collapse border border-black mb-10">
-                                <thead>
-                                    <tr className="bg-gray-100">
-                                        <th className="border border-black p-2">Item</th>
-                                        <th className="border border-black p-2">Qty</th>
-                                        <th className="border border-black p-2">Satuan</th>
-                                        <th className="border border-black p-2">Armada</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td className="border border-black p-2 font-bold">{printData.uraian}</td>
-                                        <td className="border border-black p-2 text-center text-xl font-bold">{printData.jumlah}</td>
-                                        <td className="border border-black p-2 text-center">{printData.um}</td>
-                                        <td className="border border-black p-2 text-center font-mono">{printData.nopol} ({printData.transporter})</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <div className="flex justify-around mt-20">
-                                <div className="text-center border-t border-black pt-2 w-32">Penerima</div>
-                                <div className="text-center border-t border-black pt-2 w-32">Supir</div>
-                                <div className="text-center border-t border-black pt-2 w-32">Gudang</div>
-                            </div>
+                            
+                            {/* Items Tabel mulai dari 9cm */}
+                            {printData.items.map((item, index) => {
+                                const offset = index * positions.line_height.val;
+                                return (
+                                    <React.Fragment key={item.id}>
+                                        <div className="field-data" style={{ top: `${positions.barang_start.top + offset}cm`, left: `${positions.barang_start.left}cm` }}>{item.uraian}</div>
+                                        <div className="field-data" style={{ top: `${positions.qty_start.top + offset}cm`, left: `${positions.qty_start.left}cm` }}>{item.jumlah}</div>
+                                        <div className="field-data" style={{ top: `${positions.sat_start.top + offset}cm`, left: `${positions.sat_start.left}cm` }}>{item.um}</div>
+                                    </React.Fragment>
+                                );
+                            })}
+                            
+                            {/* Footer Nopol & Driver */}
+                            <div className="field-data font-bold" style={{ top: `${positions.nopol.top}cm`, left: `${positions.nopol.left}cm` }}>{printData.nopol}</div>
+                            <div className="field-data" style={{ top: `${positions.driver.top}cm`, left: `${positions.driver.left}cm` }}>{printData.transporter}</div>
                         </div>
                     )}
                 </div>
